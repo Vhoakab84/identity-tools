@@ -46,7 +46,13 @@ task loadCSV(type:Exec) {
 
     commandLine 'mysqlimport'
     arguments.remove(args.length - 1)
-    arguments.add('groups.csv')
+    arguments.add('default_groups.csv')
+    args(arguments)
+
+
+    commandLine 'mysqlimport'
+    arguments.remove(args.length - 1)
+    arguments.add('generated_groups.csv')
     args(arguments)
 
     commandLine 'mysqlimport'
@@ -67,10 +73,22 @@ task loadCSV(type:Exec) {
 }
 
 task createCSV(type:JavaExec) {
-    if (project.hasProperty('count') && count.split(',').length == 3) {
-        main = 'CreateCSVData'
-        classpath = sourceSets.main.runtimeClasspath
-        args(count.split(','))
+    main = 'CreateCSVData'
+    classpath = sourceSets.main.runtimeClasspath
+
+    List<String> arguments = []
+
+    List<String> properties = [
+            "numOfZones",
+            "usersPerZone",
+            "groupsPerZone",
+            "clientsPerZone.clientCredentials",
+            "clientsPerZone.password",
+            "clientsPerZone.authcode",
+            "clientsPerZone.implicit"
+    ]
+    for (String property : properties) {
+        systemProperty property, project.property(property)
     }
 }
 
@@ -80,7 +98,7 @@ task createAndLoad() {
         dependsOn 'loadCSV'
     } else {
         doFirst {
-            println 'USAGE: `gradle createAndLoad -Pcount=numOfZones,clientsPerZone,usersPerZone'
+            println 'USAGE: Update gradle.properties and run `gradle createAndLoad`'
         }
     }
 }

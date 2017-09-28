@@ -8,15 +8,22 @@ import java.sql.Timestamp;
 import java.util.UUID;
 
 public class CreateCSVData{
+    public static final String GROUP_NAME_FORMAT = "group-%d";
+    public static final String ZONE_ID_FORMAT = "zone-%d";
+
+    public static final String GROUP_GUID_FORMAT = "group-guid-%d-%d";
+    public static final String USER_GUID_FORMAT = "user-guid-%d-%d";
+
     public static void main(String[] args) {
         System.out.println("Generating CSV files");
-        int zones = Integer.parseInt(args[0]);
-        int clientsPerZone = Integer.parseInt(args[1]);
-        int usersPerZone = Integer.parseInt(args[2]);
+
+        int zones = Integer.parseInt(System.getProperty("numOfZones"));
+
         printZones(zones);
-        printGroups(zones);
-        printUsers(zones, usersPerZone);
-        printClients(zones, clientsPerZone);
+        printDefaultGroups(zones);
+        printGeneratedGroups(zones);
+        printUsers(zones);
+        printClients(zones);
         printIDPs(zones);
         System.out.println("Files created!!");
     }
@@ -28,7 +35,8 @@ public class CreateCSVData{
         int i=0;
         Timestamp ts = new Timestamp(System.currentTimeMillis());
         while(i++ < numberOfZones) {
-            csvData.append("\nperfzone" + i + "," + ts.toString() + "," + ts.toString() + ",0 ," +("perfzone" + i)+ "," +("perfzone" + i)+ ",Performance test zone," +config);
+            String zoneId = String.format(ZONE_ID_FORMAT, i);
+            csvData.append("\n" + zoneId + "," + ts.toString() + "," + ts.toString() + ",0 ," + zoneId + "," + zoneId + ",Performance test zone," +config);
         }
         Path file = Paths.get("identity_zone.csv");
         try {
@@ -38,7 +46,30 @@ public class CreateCSVData{
         }
     }
 
-    public static void printGroups(int numberOfZones) {
+    public static void printGeneratedGroups(int numberOfZones) {
+        int numberOfGroups = Integer.parseInt(System.getProperty("groupsPerZone"));
+        StringBuffer csvData = new StringBuffer();
+        csvData.append("id,displayName,created,lastmodified,version,identity_zone_id,description");
+
+        int i=0;
+        Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+        while(i++ < numberOfZones) {
+            for(int j = 0; j < numberOfGroups; j++){
+                String groupName = String.format(GROUP_NAME_FORMAT, j);
+                String guid = String.format(GROUP_GUID_FORMAT, i, j);
+                String zoneId = String.format(ZONE_ID_FORMAT, i);
+                csvData.append("\n" +guid+ ","+groupName+ "," + timestamp.toString() + "," + timestamp.toString() + ",0 ," + zoneId + ",NULL");
+            }
+        }
+        Path file = Paths.get("generated_groups.csv");
+        try {
+            Files.write(file, Arrays.asList(csvData.toString()));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void printDefaultGroups(int numberOfZones) {
         StringBuffer csvData = new StringBuffer();
         csvData.append("id,displayName,created,lastmodified,version,identity_zone_id,description");
         List<String> scopes = Arrays.asList("clients.admin","clients.read","clients.secret","clients.write","groups.update","idps.read","idps.write","oauth.login","password.write","scim.create","scim.read","scim.userids","scim.write","scim.zones","uaa.admin");
@@ -47,11 +78,13 @@ public class CreateCSVData{
         Timestamp ts = new Timestamp(System.currentTimeMillis());
         while(i++ < numberOfZones) {
             for(String scope: scopes) {
+                String zoneId = String.format(ZONE_ID_FORMAT, i);
+
                 String guid = UUID.randomUUID().toString();
-                csvData.append("\n" +guid+ ","+scope+ "," + ts.toString() + "," + ts.toString() + ",0 ," + ("perfzone" + i) + ",NULL");
+                csvData.append("\n" +guid+ ","+scope+ "," + ts.toString() + "," + ts.toString() + ",0 ," + zoneId + ",NULL");
             }
         }
-        Path file = Paths.get("groups.csv");
+        Path file = Paths.get("default_groups.csv");
         try {
             Files.write(file, Arrays.asList(csvData.toString()));
         } catch (IOException e) {
@@ -59,17 +92,19 @@ public class CreateCSVData{
         }
     }
 
-    public static void printUsers(int numberOfZones, int numberOfUsers) {
+    public static void printUsers(int numberOfZones) {
+        int numberOfUsers = Integer.parseInt(System.getProperty("usersPerZone"));
         StringBuffer csvData = new StringBuffer();
         csvData.append("\"id\",\"created\",\"lastmodified\",\"version\",\"username\",\"password\",\"email\",\"authorities\",\"givenname\",\"familyname\",\"active\",\"phonenumber\",\"verified\",\"origin\",\"external_id\",\"identity_zone_id\",\"salt\",\"passwd_lastmodified\",\"legacy_verification_behavior\",\"passwd_change_required\",\"last_logon_success_time\",\"previous_logon_success_time\"");
         int i=0,j=0;
         Timestamp ts = new Timestamp(System.currentTimeMillis());
         String date = ts.toString();
-        String guid = "";
         while(i++ < numberOfZones){
             while(j++ < numberOfUsers) {
-                guid = UUID.randomUUID().toString();
-                csvData.append("\n"+guid+","+ date + "," +date+ ",0,user"+j+",$2a$10$v92nQ.g5dXQ1V1svF.KO4.I4YIWtzNlmnBGrJjB94wLheboASLaoG,user"+j+"@testcf.com,uaa.user,Perf"+j+"FN,Perf"+j+"LN,1,NULL,1,uaa,NULL,perfzone"+i+",NULL,"+date+",0,0,NULL,NULL");
+                String guid = String.format(USER_GUID_FORMAT, i, j);
+                String zoneId = String.format(ZONE_ID_FORMAT, i);
+
+                csvData.append("\n"+guid+","+ date + "," +date+ ",0,user"+j+",$2a$10$v92nQ.g5dXQ1V1svF.KO4.I4YIWtzNlmnBGrJjB94wLheboASLaoG,user"+j+"@testcf.com,uaa.user,Perf"+j+"FN,Perf"+j+"LN,1,NULL,1,uaa,NULL," + zoneId + ",NULL,"+date+",0,0,NULL,NULL");
             }
             j=0;
         }
@@ -81,19 +116,18 @@ public class CreateCSVData{
         }
     }
 
-    public static void printClients(int numberOfZones, int numberOfClients) {
+    public static void printClients(int numberOfZones) {
         StringBuffer csvData = new StringBuffer();
         csvData.append("\"client_id\",\"resource_ids\",\"client_secret\",\"scope\",\"authorized_grant_types\",\"web_server_redirect_uri\",\"authorities\",\"access_token_validity\",\"refresh_token_validity\",\"additional_information\",\"autoapprove\",\"identity_zone_id\",\"lastmodified\",\"show_on_home_page\",\"app_launch_url\",\"app_icon\",\"created_by\",\"required_user_groups\"");
-        int i=0,j=0;
-        Timestamp ts = new Timestamp(System.currentTimeMillis());
-        String date = ts.toString();
+        int i=0;
 
         while(i++ < numberOfZones){
-            while(j++ < numberOfClients) {
-                csvData.append("\n\"client"+j+"\",\"none\",\"$2a$10$YhCmy5KLFs60yUn4.NgnFO4FsxxclNtwK8cEg8dBFUTvZgG20m4gG\",\"openid,password.me\",\"client_credentials,authorization_code,password,implicit\",\"http://localhost\",\"clients.read,clients.secret,idps.write,uaa.resource,zones.perfzone1.admin,clients.write,clients.admin,scim.write,idps.read,scim.read\",NULL,NULL,\"{\\\"allowedproviders\\\":[\\\"uaa\\\"],\\\"scopes\\\":[\\\"uaa.resource\\\",\\\"scim.read\\\"]}\",\"openid\",\"perfzone"+i+"\",\""+date+"\",1,NULL,NULL,NULL,NULL");
-            }
-            j=0;
+            addClientsForType(csvData, i, Integer.parseInt(System.getProperty("clientsPerZone.clientCredentials")), "client_credentials");
+            addClientsForType(csvData, i, Integer.parseInt(System.getProperty("clientsPerZone.password")), "password");
+            addClientsForType(csvData, i, Integer.parseInt(System.getProperty("clientsPerZone.authcode")), "authorization_code");
+            addClientsForType(csvData, i, Integer.parseInt(System.getProperty("clientsPerZone.implicit")), "implicit");
         }
+
         Path file = Paths.get("oauth_client_details.csv");
         try {
             Files.write(file, Arrays.asList(csvData.toString()));
@@ -101,26 +135,42 @@ public class CreateCSVData{
             e.printStackTrace();
         }
     }
+    public static void addClientsForType(StringBuffer csvData, int zoneCounter, int numOfClients, String grantType) {
+        Timestamp ts = new Timestamp(System.currentTimeMillis());
+        String date = ts.toString();
+
+        for (int j = 0; j < numOfClients; j++) {
+            // TODO: Refactor to split by grant type
+            String zoneId = String.format(ZONE_ID_FORMAT, zoneCounter);
+            String clientId = String.format("client-%d-%s-%d", zoneCounter, grantType, j);
+            csvData.append("\n\"" + clientId + "\",\"none\",\"$2a$10$YhCmy5KLFs60yUn4.NgnFO4FsxxclNtwK8cEg8dBFUTvZgG20m4gG\",\"openid,password.me\",\"" + grantType + "\",\"http://localhost\",\"clients.read,clients.secret,idps.write,uaa.resource,zones.perfzone1.admin,clients.write,clients.admin,scim.write,idps.read,scim.read\",NULL,NULL,\"{\\\"allowedproviders\\\":[\\\"uaa\\\"],\\\"scopes\\\":[\\\"uaa.resource\\\",\\\"scim.read\\\"]}\",\"openid\",\"" + zoneId + "\",\""+date+"\",1,NULL,NULL,NULL,NULL");
+        }
+    }
 
     public static void printIDPs(int numberOfZones) {
         StringBuffer csvData = new StringBuffer();
         csvData.append("\"id\",\"created\",\"lastmodified\",\"version\",\"identity_zone_id\",\"name\",\"origin_key\",\"type\",\"config\",\"active\"");
-        int i=0,j=0;
+        int i=0;
+        int j=0;
+
         Timestamp ts = new Timestamp(System.currentTimeMillis());
         String date = ts.toString();
-        String guid = "", created,lastModified,version,identityZoneId,name,originKey,type,config,active;
+        String guid, created, lastModified, version, identityZoneId, name, originKey, type, config, active;
+
         while(i++ < numberOfZones){
-                guid = UUID.randomUUID().toString();
-                created = date;
-                lastModified = date;
-                version = "0";
-                identityZoneId = "perfzone" + i;
-                name =  "perfidp" + i;
-                originKey = "uaa";
-                type = "uaa";
-                config = "\"{\\\"emailDomain\\\":null,\\\"additionalConfiguration\\\":null,\\\"providerDescription\\\":null,\\\"passwordPolicy\\\":null,\\\"lockoutPolicy\\\":null,\\\"disableInternalUserManagement\\\":false}\"";
-                active = "1";
-                csvData.append(String.format("\n%s,%s,%s,%s,%s,%s,%s,%s,%s,%s", guid, created, lastModified, version, identityZoneId, name, originKey, type, config, active));
+            String zoneId = String.format(ZONE_ID_FORMAT, i);
+
+            guid = UUID.randomUUID().toString();
+            created = date;
+            lastModified = date;
+            version = "0";
+            identityZoneId = zoneId;
+            name =  "perfidp" + i;
+            originKey = "uaa";
+            type = "uaa";
+            config = "\"{\\\"emailDomain\\\":null,\\\"additionalConfiguration\\\":null,\\\"providerDescription\\\":null,\\\"passwordPolicy\\\":null,\\\"lockoutPolicy\\\":null,\\\"disableInternalUserManagement\\\":false}\"";
+            active = "1";
+            csvData.append(String.format("\n%s,%s,%s,%s,%s,%s,%s,%s,%s,%s", guid, created, lastModified, version, identityZoneId, name, originKey, type, config, active));
         }
         Path file = Paths.get("identity_provider.csv");
         try {
