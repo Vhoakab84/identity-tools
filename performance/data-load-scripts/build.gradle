@@ -35,7 +35,9 @@ task loadCSV(type:Exec) {
     arguments.add(mysqlHost)
     arguments.add('-u')
     arguments.add(mysqlUser)
-    arguments.add('-p'+mysqlPwd)
+    if (!mysqlPwd.isEmpty()) {
+        arguments.add('-p'+mysqlPwd)
+    }
     arguments.add('-P')
     arguments.add(mysqlPort)
     arguments.add(mysqlDb)
@@ -46,13 +48,7 @@ task loadCSV(type:Exec) {
 
     commandLine 'mysqlimport'
     arguments.remove(args.length - 1)
-    arguments.add('default_groups.csv')
-    args(arguments)
-
-
-    commandLine 'mysqlimport'
-    arguments.remove(args.length - 1)
-    arguments.add('generated_groups.csv')
+    arguments.add('groups.csv')
     args(arguments)
 
     commandLine 'mysqlimport'
@@ -90,17 +86,13 @@ task createCSV(type:JavaExec) {
     for (String property : properties) {
         systemProperty property, project.property(property)
     }
+
+
 }
 
 task createAndLoad() {
-    if(project.hasProperty('count') && count.split(',').length == 3) {
-        dependsOn 'createCSV'
-        dependsOn 'loadCSV'
-    } else {
-        doFirst {
-            println 'USAGE: Update gradle.properties and run `gradle createAndLoad`'
-        }
-    }
+    dependsOn 'createCSV'
+    dependsOn 'loadCSV'
 }
 
 task cleandb(type:Exec) {

@@ -20,8 +20,7 @@ public class CreateCSVData{
         int zones = Integer.parseInt(System.getProperty("numOfZones"));
 
         printZones(zones);
-        printDefaultGroups(zones);
-        printGeneratedGroups(zones);
+        printGroups(zones);
         printUsers(zones);
         printClients(zones);
         printIDPs(zones);
@@ -46,14 +45,21 @@ public class CreateCSVData{
         }
     }
 
-    public static void printGeneratedGroups(int numberOfZones) {
+    public static void printGroups(int numberOfZones) {
         int numberOfGroups = Integer.parseInt(System.getProperty("groupsPerZone"));
         StringBuffer csvData = new StringBuffer();
         csvData.append("id,displayName,created,lastmodified,version,identity_zone_id,description");
+        List<String> scopes = Arrays.asList("clients.admin","clients.read","clients.secret","clients.write","groups.update","idps.read","idps.write","oauth.login","password.write","scim.create","scim.read","scim.userids","scim.write","scim.zones","uaa.admin");
 
-        int i=0;
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
-        while(i++ < numberOfZones) {
+        for (int i = 0; i < numberOfZones; i++) {
+            for(String scope: scopes) {
+                String zoneId = String.format(ZONE_ID_FORMAT, i);
+
+                String guid = UUID.randomUUID().toString();
+                csvData.append("\n" +guid+ ","+scope+ "," + timestamp.toString() + "," + timestamp.toString() + ",0 ," + zoneId + ",NULL");
+            }
+
             for(int j = 0; j < numberOfGroups; j++){
                 String groupName = String.format(GROUP_NAME_FORMAT, j);
                 String guid = String.format(GROUP_GUID_FORMAT, i, j);
@@ -61,30 +67,8 @@ public class CreateCSVData{
                 csvData.append("\n" +guid+ ","+groupName+ "," + timestamp.toString() + "," + timestamp.toString() + ",0 ," + zoneId + ",NULL");
             }
         }
-        Path file = Paths.get("generated_groups.csv");
-        try {
-            Files.write(file, Arrays.asList(csvData.toString()));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 
-    public static void printDefaultGroups(int numberOfZones) {
-        StringBuffer csvData = new StringBuffer();
-        csvData.append("id,displayName,created,lastmodified,version,identity_zone_id,description");
-        List<String> scopes = Arrays.asList("clients.admin","clients.read","clients.secret","clients.write","groups.update","idps.read","idps.write","oauth.login","password.write","scim.create","scim.read","scim.userids","scim.write","scim.zones","uaa.admin");
-
-        int i=0;
-        Timestamp ts = new Timestamp(System.currentTimeMillis());
-        while(i++ < numberOfZones) {
-            for(String scope: scopes) {
-                String zoneId = String.format(ZONE_ID_FORMAT, i);
-
-                String guid = UUID.randomUUID().toString();
-                csvData.append("\n" +guid+ ","+scope+ "," + ts.toString() + "," + ts.toString() + ",0 ," + zoneId + ",NULL");
-            }
-        }
-        Path file = Paths.get("default_groups.csv");
+        Path file = Paths.get("groups.csv");
         try {
             Files.write(file, Arrays.asList(csvData.toString()));
         } catch (IOException e) {
