@@ -66,13 +66,16 @@ task loadCSV(type:Exec) {
     arguments.add('identity_provider.csv')
     args(arguments)
 
+    commandLine 'mysqlimport'
+    arguments.remove(args.length - 1)
+    arguments.add('group_membership.csv')
+    args(arguments)
+
 }
 
 task createCSV(type:JavaExec) {
     main = 'CreateCSVData'
     classpath = sourceSets.main.runtimeClasspath
-
-    List<String> arguments = []
 
     List<String> properties = [
             "numOfZones",
@@ -86,8 +89,6 @@ task createCSV(type:JavaExec) {
     for (String property : properties) {
         systemProperty property, project.property(property)
     }
-
-
 }
 
 task createAndLoad() {
@@ -109,7 +110,9 @@ task cleandb(type:Exec) {
     arguments.add(mysqlHost)
     arguments.add('-u')
     arguments.add(mysqlUser)
-    arguments.add('-p'+mysqlPwd)
+    if (!mysqlPwd.isEmpty()) {
+        arguments.add('-p'+mysqlPwd)
+    }
     arguments.add('-P')
     arguments.add(mysqlPort)
     arguments.add('--execute')

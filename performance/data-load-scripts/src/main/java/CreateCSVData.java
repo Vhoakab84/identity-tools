@@ -2,9 +2,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.sql.Timestamp;
+import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 
 public class CreateCSVData{
@@ -24,7 +28,71 @@ public class CreateCSVData{
         printUsers(zones);
         printClients(zones);
         printIDPs(zones);
+        printGroupMappings(zones);
+
         System.out.println("Files created!!");
+    }
+
+    private static void printGroupMappings(int numberOfZones) {
+        int numberOfUsers = Integer.parseInt(System.getProperty("usersPerZone"));
+        int numberOfGroups = Integer.parseInt(System.getProperty("groupsPerZone"));
+
+        Path file = Paths.get("group_membership.csv");
+
+        StringBuffer csvData = new StringBuffer();
+        csvData.append("group_id, member_id, member_type, authorities, added, origin, identity_zone_id");
+
+        Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+        Random rand = new Random();
+
+        try {
+            Files.write(file, Arrays.asList(csvData.toString()));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        csvData = new StringBuffer();
+
+        for (int zoneIdx = 0; zoneIdx < numberOfZones; zoneIdx++) {
+            String zoneId = String.format(ZONE_ID_FORMAT, zoneIdx);
+
+            for (int userIdx = 0; userIdx < 10; userIdx++) {
+                String userGuid = String.format(USER_GUID_FORMAT, zoneIdx, userIdx);
+
+                Set<Integer> generated = new LinkedHashSet<>();
+                while (generated.size() < 1000)
+                {
+                    Integer next = rand.nextInt(numberOfGroups) + 1;
+                    generated.add(next);
+                }
+                for (Integer groupIdx : generated){
+                    String groupGuid = String.format(GROUP_GUID_FORMAT, zoneIdx, groupIdx);
+                    csvData.append(String.format("\n%s,%s,USER,NULL,%s,uaa,%s", groupGuid, userGuid, timestamp.toString(), zoneId));
+                }
+            }
+
+            for (int userIdx = 10; userIdx < numberOfUsers; userIdx++) {
+                String userGuid = String.format(USER_GUID_FORMAT, zoneIdx, userIdx);
+
+                Set<Integer> generated = new LinkedHashSet<>();
+                while (generated.size() < 50)
+                {
+                    Integer next = rand.nextInt(numberOfGroups) + 1;
+                    generated.add(next);
+                }
+                for (Integer groupIdx : generated){
+                    String groupGuid = String.format(GROUP_GUID_FORMAT, zoneIdx, groupIdx);
+                    csvData.append(String.format("\n%s,%s,USER,NULL,%s,uaa,%s", groupGuid, userGuid, timestamp.toString(), zoneId));
+                }
+            }
+
+            try {
+                Files.write(file, Arrays.asList(csvData.toString()), StandardOpenOption.APPEND);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            csvData = new StringBuffer();
+        }
     }
 
     public static void printZones(int numberOfZones) {
